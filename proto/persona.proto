@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package persona;
+
+
+service PersonaService {
+  rpc CreatePersona (Persona) returns (CRUDResponse);
+  rpc ReadPersona (PersonaIdRequest) returns (Persona);
+  rpc UpdatePersona (Persona) returns (CRUDResponse);
+  rpc DeletePersona (PersonaIdRequest) returns (CRUDResponse);
+}
+
+
+message Persona {
+  string ci = 1;       
+  string nombre = 2;
+  string apellido = 3;
+}
+
+
+message PersonaIdRequest {
+  string ci = 1;
+}
+
+
+message CRUDResponse {
+  bool success = 1;
+  string message = 2;
+}
