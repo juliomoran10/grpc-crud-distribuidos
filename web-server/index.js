@@ -12,13 +12,19 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && parsedUrl.pathname === '/persona') {
         let body = '';
         req.on('data', chunk => body += chunk);
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const persona = JSON.parse(body);
-                const targetNode = balancer.selectEquipment();
-                console.log(`Balancer routed this creation request to: ${targetNode.name} (${targetNode.address})`);
+                const targetNode = await balancer.selectBestServer();
 
-                const client = grpcWrapper.createClient(targetNode.address);
+                if (!targetNode) {
+                    res.statusCode = 503;
+                    return res.end(JSON.stringify({ error: 'No available servers in the network.' }));
+                }
+
+                console.log(`Balancer routed this creation request to: ${targetNode.name} (${targetNode.grpcAddress})`);
+
+                const client = grpcWrapper.createClient(targetNode.grpcAddress);
                 client.createPersona(persona, (err, response) => {
                     if (err) { 
                         res.statusCode = 500; 
@@ -44,7 +50,7 @@ const server = http.createServer(async (req, res) => {
         let recordFound = null;
 
         for (const eq of equipments) {
-            const client = grpcWrapper.createClient(eq.address);
+            const client = grpcWrapper.createClient(eq.grpcAddress);
             const result = await new Promise(resolve => {
                 client.readPersona({ ci }, (err, resp) => {
                     if (!err && resp && resp.ci) resolve(resp);
@@ -74,7 +80,7 @@ const server = http.createServer(async (req, res) => {
                 let isUpdated = false;
 
                 for (const eq of equipments) {
-                    const client = grpcWrapper.createClient(eq.address);
+                    const client = grpcWrapper.createClient(eq.grpcAddress);
                     const success = await new Promise(resolve => {
                         client.updatePersona(persona, (err, resp) => resolve(!err && resp.success));
                     });
@@ -98,7 +104,7 @@ const server = http.createServer(async (req, res) => {
         let isDeleted = false;
 
         for (const eq of equipments) {
-            const client = grpcWrapper.createClient(eq.address);
+            const client = grpcWrapper.createClient(eq.grpcAddress);
             const success = await new Promise(resolve => {
                 client.deletePersona({ ci }, (err, resp) => resolve(!err && resp.success));
             });

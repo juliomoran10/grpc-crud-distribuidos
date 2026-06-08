@@ -1,23 +1,38 @@
+const axios = require('axios');
+
 
 const EQUIPMENTS = [
-    { name: 'Service 1', address: '127.0.0.1:50051' },
-    { name: 'Service 2', address: '127.0.0.1:50052' },
-    { name: 'Service 3', address: '127.0.0.1:50053' }
+    { name: 'Service 1', grpcAddress: '127.0.0.1:50051', statusUrl: 'http://localhost:3001' },
+    { name: 'Service 2', grpcAddress: '127.0.0.1:50052', statusUrl: 'http://localhost:3002' },
+    { name: 'Service 3', grpcAddress: '192.168.1.XX:50053', statusUrl: 'http://192.168.1.XX:3003' }
 ];
 
-let currentIndex = 0;
+async function selectBestServer() {
+    let best = null;
+    let maxScore = -1;
 
+    for (let s of EQUIPMENTS) {
+        try {
+            const { data } = await axios.get(`${s.statusUrl}/status`, { timeout: 800 });
+            
+            
+            let score = 0;
+            score += (data.cpuSpeed * 0.20);            
+            score += (data.memFree / 1e9 * 0.10);         
+            score += (data.diskType.includes('SSD') ? 30 : 10); 
+            score += (100 - data.processTime) * 0.40;     
 
-function selectEquipment() {
-    const selected = EQUIPMENTS[currentIndex];
-   
-    currentIndex = (currentIndex + 1) % EQUIPMENTS.length;
-    return selected;
+            if (score > maxScore) {
+                maxScore = score;
+                best = s;
+            }
+        } catch (e) {
+            
+            console.log(`> ${s.name} inalcanzable, buscando otra opción...`);
+        }
+    }
+    
+    return best;
 }
 
-
-function getAllEquipments() {
-    return EQUIPMENTS;
-}
-
-module.exports = { selectEquipment, getAllEquipments };
+module.exports = { selectBestServer };
